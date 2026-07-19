@@ -229,3 +229,4 @@ class SkillDetailScreen extends StatelessWidget {
     );
   }
 }
+
