@@ -1,4 +1,8 @@
-<<<<<<< HEAD
+HEAD
+# SkillArc
+Mobile application for optimizing learning paths and technical skill development for IT students, developed with Flutter and Spring Boot.
+
+HEAD
 # skill_arc
 
 Mobile application for optimizing learning paths and technical skill development for IT students, developed with Flutter and Spring Boot.
@@ -16,7 +20,8 @@ A few resources to get you started if this is your first Flutter project:
 For help getting started with Flutter development, view the
 [online documentation](https://docs.flutter.dev/), which offers tutorials,
 samples, guidance on mobile development, and a full API reference.
-=======
+
 # SkillArc
 Mobile application for optimizing learning paths and technical skill development for IT students, developed with Flutter and Spring Boot.
->>>>>>> 3438deab93a2d979fd347a279dcb88eac5fdde7a
+3438deab93a2d979fd347a279dcb88eac5fdde7a
+main

@@ -1,3 +1,5 @@
+HEAD
+
 build/
 .dart_tool/
 .idea/
@@ -50,6 +52,7 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 
+main
 # See https://www.dartlang.org/guides/libraries/private-files
 
 # Files and directories created by pub
@@ -79,4 +82,7 @@ doc/api/
 
 .flutter-plugins
 .flutter-plugins-dependencies
+HEAD
+
 3438deab93a2d979fd347a279dcb88eac5fdde7a
+main
