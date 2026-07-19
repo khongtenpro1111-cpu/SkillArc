@@ -1,15 +1,44 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'dart:async';
 import 'dart:math' as math;
 import 'dart:ui';
-import 'screens/skill_tree_screen.dart';
-import 'screens/home_screen.dart';
-import 'screens/explore_screen.dart';
-import 'screens/challenge_screen.dart';
-import 'screens/profile_screen.dart';
+import 'package:hive_flutter/hive_flutter.dart';
+import 'package:provider/provider.dart';
+import 'package:skill_arc/providers/user_provider.dart';
+import 'package:skill_arc/screens/skill_tree_screen.dart';
+import 'package:skill_arc/screens/home_screen.dart';
+import 'package:skill_arc/screens/explore_screen.dart';
+import 'package:skill_arc/screens/challenge_screen.dart';
+import 'package:skill_arc/screens/profile_screen.dart';
+import 'package:skill_arc/screens/login_screen.dart';
+import 'package:skill_arc/services/auth_service.dart';
+import 'package:skill_arc/services/notification_service.dart';
+import 'package:skill_arc/providers/skill_provider.dart';
 
-void main() {
-  runApp(const MyApp());
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  
+  // 1. Khởi tạo Hive (Database cục bộ)
+  await Hive.initFlutter();
+  
+  // 2. Mở các "hộp" lưu trữ dữ liệu
+  await Hive.openBox('userBox');     // Lưu thông tin người dùng
+  await Hive.openBox('progressBox'); // Lưu tiến độ học tập
+
+  // 3. Khởi tạo Notification Service
+  await NotificationService().init();
+
+  runApp(
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => SkillProvider()),
+        ChangeNotifierProvider(create: (_) => UserProvider()),
+      ],
+      child: const MyApp(),
+    ),
+  );
 }
 
 class MyApp extends StatelessWidget {
@@ -47,7 +76,7 @@ class MyApp extends StatelessWidget {
           color: const Color(0xFF161B22),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
-            side: BorderSide(color: Colors.white.withOpacity(0.1)),
+            side: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
           ),
         ),
         textTheme: const TextTheme(
@@ -121,11 +150,17 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
     _mainController.forward();
 
     // Chuyển màn hình sau 5 giây
-    Timer(const Duration(milliseconds: 5500), () {
+    Timer(const Duration(milliseconds: 5500), () async {
       if (mounted) {
+        final authService = AuthService();
+        final isLoggedIn = await authService.isLoggedIn();
+        
+        if (!mounted) return;
+
         Navigator.of(context).pushReplacement(
           PageRouteBuilder(
-            pageBuilder: (context, animation, secondaryAnimation) => const MyHomePage(title: 'SkillArc'),
+            pageBuilder: (context, animation, secondaryAnimation) => 
+                isLoggedIn ? const MyHomePage(title: 'SkillArc') : const LoginScreen(),
             transitionsBuilder: (context, animation, secondaryAnimation, child) {
               return FadeTransition(opacity: animation, child: child);
             },
@@ -173,7 +208,7 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                   decoration: BoxDecoration(
                     gradient: RadialGradient(
                       colors: [
-                        const Color(0xFF00D2FF).withOpacity(0.15 * _pulseController.value),
+                        const Color(0xFF00D2FF).withValues(alpha: 0.15 * _pulseController.value),
                         Colors.transparent,
                       ],
                     ),
@@ -198,10 +233,10 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                       height: 180,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        border: Border.all(color: Colors.white.withOpacity(0.2)),
+                        border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
                         boxShadow: [
                           BoxShadow(
-                            color: const Color(0xFF00D2FF).withOpacity(0.3 * _glowIntensity.value),
+                            color: const Color(0xFF00D2FF).withValues(alpha: 0.3 * _glowIntensity.value),
                             blurRadius: 40,
                             spreadRadius: 5,
                           ),
@@ -211,7 +246,7 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                         child: BackdropFilter(
                           filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
                           child: Container(
-                            color: Colors.white.withOpacity(0.05),
+                            color: Colors.white.withValues(alpha: 0.05),
                             padding: const EdgeInsets.all(35),
                             child: Image.asset(
                               'assets/logo.png',
@@ -247,7 +282,7 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                               letterSpacing: _textTracking.value,
                               shadows: [
                                 Shadow(
-                                  color: const Color(0xFF00D2FF).withOpacity(0.8),
+                                  color: const Color(0xFF00D2FF).withValues(alpha: 0.8),
                                   blurRadius: 15,
                                 ),
                               ],
@@ -261,7 +296,7 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                               gradient: LinearGradient(
                                 colors: [
                                   Colors.transparent,
-                                  const Color(0xFF00D2FF).withOpacity(0.5),
+                                  const Color(0xFF00D2FF).withValues(alpha: 0.5),
                                   Colors.transparent,
                                 ],
                               ),
@@ -273,7 +308,7 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                             style: TextStyle(
                               fontSize: 10,
                               fontWeight: FontWeight.w200,
-                              color: Colors.white.withOpacity(0.5),
+                              color: Colors.white.withValues(alpha: 0.5),
                               letterSpacing: 10,
                             ),
                           ),
@@ -299,7 +334,7 @@ class NeuralPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = const Color(0xFF00D2FF).withOpacity(0.1)
+      ..color = const Color(0xFF00D2FF).withValues(alpha: 0.1)
       ..strokeWidth = 0.5;
 
     final random = math.Random(1234);
@@ -317,11 +352,11 @@ class NeuralPainter extends CustomPainter {
       for (int j = i + 1; j < points.length; j++) {
         double dist = (points[i] - points[j]).distance;
         if (dist < 150) {
-          paint.color = const Color(0xFF00D2FF).withOpacity((1 - dist / 150) * 0.1);
+          paint.color = const Color(0xFF00D2FF).withValues(alpha: (1 - dist / 150) * 0.1);
           canvas.drawLine(points[i], points[j], paint);
         }
       }
-      canvas.drawCircle(points[i], 1.2, paint..color = const Color(0xFF00D2FF).withOpacity(0.1));
+      canvas.drawCircle(points[i], 1.2, paint..color = const Color(0xFF00D2FF).withValues(alpha: 0.1));
     }
   }
 
@@ -358,10 +393,25 @@ class _MyHomePageState extends State<MyHomePage> {
             icon: const Icon(Icons.notifications_none_rounded, color: Color(0xFF00D2FF)),
             onPressed: () {},
           ),
-          IconButton(
-            icon: const Icon(Icons.account_circle_outlined),
-            onPressed: () {
-              setState(() => _selectedIndex = 4); // Chuyển đến Profile
+          Consumer<UserProvider>(
+            builder: (context, userProvider, child) {
+              final user = userProvider.currentUser;
+              return GestureDetector(
+                onTap: () => setState(() => _selectedIndex = 4),
+                child: Padding(
+                  padding: const EdgeInsets.only(right: 15),
+                  child: CircleAvatar(
+                    radius: 16,
+                    backgroundColor: const Color(0xFF00D2FF).withValues(alpha: 0.1),
+                    backgroundImage: (user?.avatarPath != null && File(user!.avatarPath!).existsSync())
+                        ? FileImage(File(user.avatarPath!))
+                        : null,
+                    child: (user?.avatarPath == null || !File(user!.avatarPath!).existsSync())
+                        ? const Icon(Icons.person, size: 18, color: Color(0xFF00D2FF))
+                        : null,
+                  ),
+                ),
+              );
             },
           ),
         ],

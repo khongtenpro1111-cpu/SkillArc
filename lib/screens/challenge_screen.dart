@@ -53,7 +53,7 @@ class ChallengeScreen extends StatelessWidget {
       decoration: BoxDecoration(
         color: const Color(0xFF161B22),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withOpacity(0.05)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -95,7 +95,7 @@ class ChallengeScreen extends StatelessWidget {
           Positioned(
             right: -20,
             bottom: -20,
-            child: Icon(Icons.emoji_events_rounded, size: 120, color: Colors.white.withOpacity(0.2)),
+            child: Icon(Icons.emoji_events_rounded, size: 120, color: Colors.white.withValues(alpha: 0.2)),
           ),
           Padding(
             padding: const EdgeInsets.all(20),

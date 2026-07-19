@@ -1,70 +1,14 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:provider/provider.dart';
+import 'package:skill_arc/providers/skill_provider.dart';
 
-/// 1. Model dữ liệu SkillNode
-class SkillNode {
-  final String id;
-  final String title;
-  bool isCompleted;
-
-  SkillNode({
-    required this.id,
-    required this.title,
-    this.isCompleted = false,
-  });
-}
-
-class SkillTreeScreen extends StatefulWidget {
+class SkillTreeScreen extends StatelessWidget {
   const SkillTreeScreen({super.key});
-
-  @override
-  State<SkillTreeScreen> createState() => _SkillTreeScreenState();
-}
-
-class _SkillTreeScreenState extends State<SkillTreeScreen> {
-  /// 2. Quản lý trạng thái: Danh sách các kỹ năng
-  final List<SkillNode> _skillList = [
-    SkillNode(id: '1', title: 'Backend Architect'),
-    SkillNode(id: '2', title: 'ASP.NET Core / C#'),
-    SkillNode(id: '3', title: 'SQL & Database Design'),
-    SkillNode(id: '4', title: 'Docker & Kubernetes'),
-    SkillNode(id: '5', title: 'System Security'),
-    SkillNode(id: '6', title: 'Cloud Deployment'),
-  ];
-
-  @override
-  void initState() {
-    super.initState();
-    _loadSkillData();
-  }
-
-  /// Tải trạng thái từ bộ nhớ điện thoại (SharedPreferences)
-  Future<void> _loadSkillData() async {
-    final prefs = await SharedPreferences.getInstance();
-    setState(() {
-      for (var skill in _skillList) {
-        // Lấy giá trị bool đã lưu theo ID, mặc định là false nếu chưa có
-        skill.isCompleted = prefs.getBool('skill_status_${skill.id}') ?? false;
-      }
-    });
-  }
-
-  /// Hàm đảo ngược trạng thái hoàn thành và lưu vào bộ nhớ
-  Future<void> _toggleSkillStatus(int index) async {
-    final skill = _skillList[index];
-    final prefs = await SharedPreferences.getInstance();
-    
-    setState(() {
-      skill.isCompleted = !skill.isCompleted;
-      // Lưu giá trị mới vào SharedPreferences
-      prefs.setBool('skill_status_${skill.id}', skill.isCompleted);
-    });
-  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0D1117), // Dark Mode chuyên nghiệp
+      backgroundColor: const Color(0xFF0D1117),
       appBar: AppBar(
         title: const Text(
           'LỘ TRÌNH KỸ NĂNG',
@@ -74,22 +18,40 @@ class _SkillTreeScreenState extends State<SkillTreeScreen> {
         backgroundColor: Colors.transparent,
         elevation: 0,
       ),
-      /// 3. Logic ListView: Hiển thị danh sách kỹ năng
-      body: ListView.builder(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-        itemCount: _skillList.length,
-        itemBuilder: (context, index) {
-          final skill = _skillList[index];
-          return SkillItemWidget(
-            node: skill,
-            onToggle: () => _toggleSkillStatus(index),
-            onTap: () {
-              /// 4. Điều hướng sang trang chi tiết giả lập
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => SkillDetailScreen(skill: skill),
-                ),
+      body: Consumer<SkillProvider>(
+        builder: (context, provider, child) {
+          return ListView.builder(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+            itemCount: provider.skills.length,
+            itemBuilder: (context, index) {
+              final skill = provider.skills[index];
+              final isLocked = provider.isSkillLocked(skill.id);
+              final lockReason = provider.getLockReason(skill.id);
+              
+              return SkillItemWidget(
+                node: skill,
+                isLocked: isLocked,
+                lockReason: lockReason,
+                onToggle: () async {
+                  try {
+                    await provider.toggleSkillStatus(skill.id);
+                  } catch (e) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(e.toString()),
+                        backgroundColor: Colors.redAccent,
+                      ),
+                    );
+                  }
+                },
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => SkillDetailScreen(skill: skill, isLocked: isLocked),
+                    ),
+                  );
+                },
               );
             },
           );
@@ -99,68 +61,82 @@ class _SkillTreeScreenState extends State<SkillTreeScreen> {
   }
 }
 
-/// Widget hiển thị từng khối kỹ năng
 class SkillItemWidget extends StatelessWidget {
   final SkillNode node;
+  final bool isLocked;
+  final String? lockReason;
   final VoidCallback onToggle;
   final VoidCallback onTap;
 
   const SkillItemWidget({
     super.key,
     required this.node,
+    required this.isLocked,
+    this.lockReason,
     required this.onTap,
     required this.onToggle,
   });
 
   @override
   Widget build(BuildContext context) {
-    // Hiệu ứng thay đổi màu sắc viền dựa trên isCompleted
-    final Color borderColor = node.isCompleted 
-        ? const Color(0xFF00FF94)  // Màu xanh lá
-        : const Color(0xFF81D4FA); // Màu xanh dương nhạt
+    final Color activeColor = node.isCompleted 
+        ? const Color(0xFF00FF94) 
+        : const Color(0xFF00D2FF);
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
-      child: GestureDetector(
-        onTap: onTap, // Điều hướng sang trang chi tiết khi nhấn vào khối
-        child: Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: const Color(0xFF161B22),
-            borderRadius: BorderRadius.circular(15),
-            border: Border.all(
-              color: borderColor.withOpacity(node.isCompleted ? 0.8 : 0.3),
-              width: 2,
-            ),
-          ),
-          child: Row(
-            children: [
-              // Icon hiển thị trạng thái bên trái
-              IconButton(
-                onPressed: onToggle,
-                icon: Icon(
-                  node.isCompleted
-                      ? Icons.check_circle_rounded 
-                      : Icons.radio_button_off_rounded,
-                  color: borderColor,
-                  size: 28,
-                ),
+      child: Opacity(
+        opacity: isLocked ? 0.5 : 1.0,
+        child: GestureDetector(
+          onTap: isLocked ? null : onTap,
+          child: Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: const Color(0xFF161B22),
+              borderRadius: BorderRadius.circular(15),
+              border: Border.all(
+                color: node.isCompleted 
+                    ? activeColor.withValues(alpha: 0.8) 
+                    : Colors.white.withValues(alpha: 0.1),
+                width: 2,
               ),
-              // Tên kỹ năng hiển thị ở chính giữa
-              Expanded(
-                child: Text(
-                  node.title,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
+            ),
+            child: Row(
+              children: [
+                IconButton(
+                  onPressed: isLocked ? null : onToggle,
+                  icon: Icon(
+                    isLocked 
+                        ? Icons.lock_outline_rounded
+                        : (node.isCompleted ? Icons.check_circle_rounded : Icons.radio_button_off_rounded),
+                    color: isLocked ? Colors.white24 : activeColor,
+                    size: 28,
                   ),
                 ),
-              ),
-              // Khoảng trống giả lập để text nằm chính giữa tuyệt đối
-              const SizedBox(width: 48),
-            ],
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        node.title,
+                        style: TextStyle(
+                          color: isLocked ? Colors.white38 : Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          decoration: node.isCompleted ? TextDecoration.lineThrough : null,
+                        ),
+                      ),
+                      if (isLocked)
+                        Text(
+                          lockReason ?? 'Yêu cầu hoàn thành kỹ năng trước',
+                          style: const TextStyle(color: Colors.redAccent, fontSize: 11),
+                        ),
+                    ],
+                  ),
+                ),
+                const Icon(Icons.chevron_right, color: Colors.white24),
+              ],
+            ),
           ),
         ),
       ),
@@ -168,50 +144,88 @@ class SkillItemWidget extends StatelessWidget {
   }
 }
 
-/// Trang chi tiết giả lập (Skill Detail Screen)
 class SkillDetailScreen extends StatelessWidget {
   final SkillNode skill;
-  const SkillDetailScreen({super.key, required this.skill});
+  final bool isLocked;
+  const SkillDetailScreen({super.key, required this.skill, required this.isLocked});
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFF0D1117),
-      appBar: AppBar(
-        title: Text(skill.title),
-        backgroundColor: const Color(0xFF161B22),
-      ),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              skill.isCompleted ? Icons.verified_rounded : Icons.menu_book_rounded,
-              size: 100,
-              color: skill.isCompleted ? const Color(0xFF00FF94) : const Color(0xFF81D4FA),
-            ),
-            const SizedBox(height: 24),
-            Text(
-              'CHI TIẾT: ${skill.title}',
-              style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              'Trạng thái: ${skill.isCompleted ? "Đã hoàn thành" : "Đang tiến hành"}',
-              style: const TextStyle(color: Colors.white70, fontSize: 18),
-            ),
-            const SizedBox(height: 40),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF00D2FF),
-                foregroundColor: Colors.black,
+    return Consumer<SkillProvider>(
+      builder: (context, provider, child) {
+        final currentSkill = provider.skills.firstWhere((s) => s.id == skill.id);
+        final currentIsLocked = provider.isSkillLocked(currentSkill.id);
+        final lockReason = provider.getLockReason(currentSkill.id);
+
+        return Scaffold(
+          backgroundColor: const Color(0xFF010409),
+          appBar: AppBar(
+            title: Text(currentSkill.title),
+            backgroundColor: Colors.transparent,
+          ),
+          body: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(30.0),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    currentIsLocked ? Icons.lock : (currentSkill.isCompleted ? Icons.verified_rounded : Icons.menu_book_rounded),
+                    size: 100,
+                    color: currentSkill.isCompleted ? const Color(0xFF00FF94) : const Color(0xFF00D2FF),
+                  ),
+                  const SizedBox(height: 24),
+                  Text(
+                    currentSkill.title,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    currentIsLocked 
+                      ? (lockReason ?? "Nội dung này đang bị khóa.") 
+                      : (currentSkill.isCompleted ? "Bạn đã làm chủ kỹ năng này!" : "Hãy bắt đầu học kỹ năng này ngay."),
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: currentIsLocked ? Colors.redAccent : Colors.white70, 
+                      fontSize: 16
+                    ),
+                  ),
+                  const SizedBox(height: 40),
+                  if (!currentIsLocked)
+                    ElevatedButton.icon(
+                      onPressed: () async {
+                        try {
+                          await provider.toggleSkillStatus(currentSkill.id);
+                        } catch (e) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text(e.toString()), backgroundColor: Colors.redAccent),
+                          );
+                        }
+                      },
+                      icon: Icon(currentSkill.isCompleted ? Icons.undo : Icons.check_circle),
+                      label: Text(
+                        currentSkill.isCompleted ? 'HỦY HOÀN THÀNH' : 'ĐÁNH DẤU HOÀN THÀNH',
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: currentSkill.isCompleted ? Colors.white12 : const Color(0xFF00FF94),
+                        foregroundColor: currentSkill.isCompleted ? Colors.white : Colors.black,
+                        minimumSize: const Size(double.infinity, 56),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                    ),
+                  const SizedBox(height: 16),
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('QUAY LẠI', style: TextStyle(color: Colors.white54)),
+                  ),
+                ],
               ),
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Quay lại lộ trình'),
             ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 }
