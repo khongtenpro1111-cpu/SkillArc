@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "865791484222",
+    "project_id": "skillarc-9a6e5",
+    "storage_bucket": "skillarc-9a6e5.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:865791484222:android:6b184be078c47bb256cc6f",
+        "android_client_info": {
+          "package_name": "com.example.skill_arc"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBiBOoDGoqWdogWA3X7wuI2G3m89cVYUdM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
